@@ -95,6 +95,34 @@ struct User {
     created_at: u64,
 }
 
+// FitnessChallengeParticipant struct
+#[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
+struct FitnessChallengeParticipant {
+    id: u64,
+    challenge_id: u64,
+    user_id: u64,
+    progress: String, // String representing progress (e.g., "Completed 50%")
+    updated_at: u64,
+}
+
+// FitnessChallengeParticipantPayload struct (for creating new participants)
+#[derive(candid::CandidType, Deserialize, Serialize)]
+struct FitnessChallengeParticipantPayload {
+    challenge_id: u64,
+    user_id: u64,
+    progress: String,
+}
+
+#[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
+struct FitnessChallenge {
+    id: u64,
+    name: String,
+    description: String,
+    start_date: u64,
+    end_date: u64,
+    created_at: u64,
+}
+
 // HealthRecord struct
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
 struct HealthRecord {
@@ -105,6 +133,14 @@ struct HealthRecord {
     activity_level: String,
     status: HealthStatus,
     recorded_at: u64,
+}
+
+#[derive(candid::CandidType, Deserialize, Serialize)]
+struct MedicationReminderPayload {
+    user_id: u64,
+    medication_name: String,
+    dosage: String,
+    schedule: String,
 }
 
 // MedicationReminder struct
@@ -129,6 +165,14 @@ struct VirtualConsultation {
     created_at: u64,
 }
 
+#[derive(candid::CandidType, Deserialize, Serialize)]
+struct ExerciseRecommendationPayload {
+    user_id: u64,
+    exercise_type: ExerciseType,
+    duration: u32,  // Duration in minutes
+    intensity: Intensity,
+}
+
 // DietRecord struct
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
 struct DietRecord {
@@ -140,7 +184,14 @@ struct DietRecord {
     recorded_at: u64,
 }
 
-// ExerciseRecord struct
+#[derive(candid::CandidType, Deserialize, Serialize)]
+struct UserPayload {
+    name: String,
+    contact: String,
+    user_type: UserType,
+}
+
+// ExerciseRecommendation struct
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
 struct ExerciseRecommendation {
     id: u64,
@@ -150,6 +201,40 @@ struct ExerciseRecommendation {
     intensity: Intensity,
     recommended_at: u64,
 }
+
+#[derive(candid::CandidType, Deserialize, Serialize)]
+struct FitnessChallengePayload {
+    name: String,
+    description: String,
+    start_date: u64,
+    end_date: u64,
+}
+
+#[derive(candid::CandidType, Deserialize, Serialize)]
+struct HealthRecordPayload {
+    user_id: u64,
+    heart_rate: u8,
+    blood_pressure: String,
+    activity_level: String,
+    status: HealthStatus,
+}
+
+#[derive(candid::CandidType, Deserialize, Serialize)]
+struct VirtualConsultationPayload {
+    user_id: u64,
+    provider_id: u64,
+    scheduled_at: u64,
+    status: String,
+}
+
+#[derive(candid::CandidType, Deserialize, Serialize)]
+struct DietRecordPayload {
+    user_id: u64,
+    meal_type: MealType,
+    food_items: String, // Comma-separated list of food items
+    calories: u32,
+}
+
 
 // MentalHealthRecord struct
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
@@ -162,24 +247,30 @@ struct MentalHealthRecord {
     recorded_at: u64,
 }
 
-#[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
-struct FitnessChallenge {
-    id: u64,
-    name: String,
-    description: String,
-    start_date: u64,
-    end_date: u64,
-    created_at: u64,
+// Error handling enum for custom errors
+#[derive(Debug, Clone, PartialEq, Eq, candid::CandidType, Serialize, Deserialize)]
+enum AppError {
+    NotFound(String),
+    AlreadyExists(String),
+    InvalidInput(String),
+    DatabaseError(String),
 }
 
-#[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
-struct FitnessChallengeParticipant {
-    id: u64,
-    challenge_id: u64,
-    user_id: u64,
-    progress: u32, // e.g., steps walked, distance covered, etc.
-    updated_at: u64,
+impl std::fmt::Display for AppError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AppError::NotFound(msg) => write!(f, "Not Found: {}", msg),
+            AppError::AlreadyExists(msg) => write!(f, "Already Exists: {}", msg),
+            AppError::InvalidInput(msg) => write!(f, "Invalid Input: {}", msg),
+            AppError::DatabaseError(msg) => write!(f, "Database Error: {}", msg),
+        }
+    }
 }
+
+impl std::error::Error for AppError {}
+
+// Common Result type with AppError
+type AppResult<T> = Result<T, AppError>;
 
 impl Storable for User {
     fn to_bytes(&self) -> Cow<[u8]> {
@@ -189,6 +280,21 @@ impl Storable for User {
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
         Decode!(bytes.as_ref(), Self).unwrap()
     }
+}
+
+impl Storable for FitnessChallengeParticipant {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(Encode!(self).unwrap())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        Decode!(bytes.as_ref(), Self).unwrap()
+    }
+}
+
+impl BoundedStorable for FitnessChallengeParticipant {
+    const MAX_SIZE: u32 = 512; // Set an appropriate maximum size in bytes
+    const IS_FIXED_SIZE: bool = false; // Set to `true` if the size of the struct is fixed
 }
 
 impl BoundedStorable for User {
@@ -301,20 +407,15 @@ impl BoundedStorable for FitnessChallenge {
     const IS_FIXED_SIZE: bool = false;
 }
 
-impl Storable for FitnessChallengeParticipant {
-    fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(Encode!(self).unwrap())
-    }
 
-    fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        Decode!(bytes.as_ref(), Self).unwrap()
-    }
+#[derive(candid::CandidType, Deserialize, Serialize)]
+struct MentalHealthRecordPayload {
+    user_id: u64,
+    mood: Mood,
+    stress_level: StressLevel,
+    notes: String,  // Any additional notes
 }
 
-impl BoundedStorable for FitnessChallengeParticipant {
-    const MAX_SIZE: u32 = 512;
-    const IS_FIXED_SIZE: bool = false;
-}
 
 thread_local! {
     static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(
@@ -348,12 +449,12 @@ thread_local! {
 
     static DIET_RECORDS_STORAGE: RefCell<StableBTreeMap<u64, DietRecord, Memory>> =
         RefCell::new(StableBTreeMap::init(
-            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(5)))
+            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(5)))  // Use a unique memory ID
     ));
 
     static EXERCISE_RECOMMENDATIONS_STORAGE: RefCell<StableBTreeMap<u64, ExerciseRecommendation, Memory>> =
         RefCell::new(StableBTreeMap::init(
-            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(6)))
+            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(6)))  // Use a unique memory ID
     ));
 
     static MENTAL_HEALTH_RECORDS_STORAGE: RefCell<StableBTreeMap<u64, MentalHealthRecord, Memory>> =
@@ -363,101 +464,20 @@ thread_local! {
 
     static FITNESS_CHALLENGES_STORAGE: RefCell<StableBTreeMap<u64, FitnessChallenge, Memory>> =
         RefCell::new(StableBTreeMap::init(
-            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(8)))
+            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(8)))  // Use a unique MemoryId
     ));
 
     static FITNESS_CHALLENGE_PARTICIPANTS_STORAGE: RefCell<StableBTreeMap<u64, FitnessChallengeParticipant, Memory>> =
         RefCell::new(StableBTreeMap::init(
-            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(9)))
+            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(9)))  // Ensure unique MemoryId for participants
     ));
 }
 
-// User Payload
-#[derive(candid::CandidType, Deserialize, Serialize)]
-struct UserPayload {
-    name: String,
-    contact: String,
-    user_type: UserType,
-}
-
-// HealthRecord Payload
-#[derive(candid::CandidType, Deserialize, Serialize)]
-struct HealthRecordPayload {
-    user_id: u64,
-    heart_rate: u8,
-    blood_pressure: String,
-    activity_level: String,
-    status: HealthStatus,
-}
-
-// MedicationReminder Payload
-#[derive(candid::CandidType, Deserialize, Serialize)]
-struct MedicationReminderPayload {
-    user_id: u64,
-    medication_name: String,
-    dosage: String,
-    schedule: String,
-}
-
-// VirtualConsultation Payload
-#[derive(candid::CandidType, Deserialize, Serialize)]
-struct VirtualConsultationPayload {
-    user_id: u64,
-    provider_id: u64,
-    scheduled_at: u64,
-    status: String,
-}
-
-// DietRecord Payload
-#[derive(candid::CandidType, Deserialize, Serialize)]
-struct DietRecordPayload {
-    user_id: u64,
-    meal_type: MealType,
-    food_items: String,
-    calories: u32,
-}
-
-// ExerciseRecommendation Payload
-#[derive(candid::CandidType, Deserialize, Serialize)]
-struct ExerciseRecommendationPayload {
-    user_id: u64,
-    exercise_type: ExerciseType,
-    duration: u32,
-    intensity: Intensity,
-}
-
-// MentalHealthRecord Payload
-#[derive(candid::CandidType, Deserialize, Serialize)]
-struct MentalHealthRecordPayload {
-    user_id: u64,
-    mood: Mood,
-    stress_level: StressLevel,
-    notes: String,
-}
-
-// FitnessChallenge Payload
-#[derive(candid::CandidType, Deserialize, Serialize)]
-struct FitnessChallengePayload {
-    name: String,
-    description: String,
-    start_date: u64,
-    end_date: u64,
-}
-
-// FitnessChallengeParticipant Payload
-#[derive(candid::CandidType, Deserialize, Serialize)]
-struct FitnessChallengeParticipantPayload {
-    challenge_id: u64,
-    user_id: u64,
-    progress: u32,
-}
-
-// Function to create a new user
+// Function to create a user
 #[ic_cdk::update]
-fn create_user(payload: UserPayload) -> Result<User, String> {
-    // Ensure name and contact are not empty
+fn create_user(payload: UserPayload) -> AppResult<User> {
     if payload.name.is_empty() || payload.contact.is_empty() {
-        return Err("Name and contact cannot be empty".to_string());
+        return Err(AppError::InvalidInput("Name and contact cannot be empty".to_string()));
     }
 
     let id = ID_COUNTER
@@ -475,13 +495,16 @@ fn create_user(payload: UserPayload) -> Result<User, String> {
         created_at: time(),
     };
 
-    USERS_STORAGE.with(|storage| storage.borrow_mut().insert(id, user.clone()));
-    Ok(user)
+    USERS_STORAGE.with(|storage| {
+        storage.borrow_mut().insert(id, user.clone());
+        Ok(user)
+    })
 }
+
 
 // Function to retrieve all users
 #[ic_cdk::query]
-fn get_all_users() -> Result<Vec<User>, String> {
+fn get_all_users() -> AppResult<Vec<User>> {
     USERS_STORAGE.with(|storage| {
         let stable_btree_map = &*storage.borrow();
         let records: Vec<User> = stable_btree_map
@@ -489,7 +512,7 @@ fn get_all_users() -> Result<Vec<User>, String> {
             .map(|(_, record)| record.clone())
             .collect();
         if records.is_empty() {
-            Err("No users found.".to_string())
+            Err(AppError::NotFound("No users found".to_string()))
         } else {
             Ok(records)
         }
@@ -983,7 +1006,7 @@ fn get_all_fitness_challenge_participants() -> Result<Vec<FitnessChallengePartic
     })
 }
 
-// Error types
+// Error types for front-end compatibility
 #[derive(candid::CandidType, Deserialize, Serialize)]
 enum Error {
     NotFound { msg: String },
