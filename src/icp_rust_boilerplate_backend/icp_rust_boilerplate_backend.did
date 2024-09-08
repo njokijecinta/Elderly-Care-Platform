@@ -1,3 +1,9 @@
+type AppError = variant {
+  InvalidInput : text;
+  DatabaseError : text;
+  NotFound : text;
+  AlreadyExists : text;
+};
 type DietRecord = record {
   id : nat64;
   calories : nat32;
@@ -39,12 +45,12 @@ type FitnessChallengeParticipant = record {
   id : nat64;
   updated_at : nat64;
   user_id : nat64;
-  progress : nat32;
+  progress : text;
   challenge_id : nat64;
 };
 type FitnessChallengeParticipantPayload = record {
   user_id : nat64;
-  progress : nat32;
+  progress : text;
   challenge_id : nat64;
 };
 type FitnessChallengePayload = record {
@@ -109,14 +115,14 @@ type Result_12 = variant { Ok : vec FitnessChallenge; Err : text };
 type Result_13 = variant { Ok : vec HealthRecord; Err : text };
 type Result_14 = variant { Ok : vec MedicationReminder; Err : text };
 type Result_15 = variant { Ok : vec MentalHealthRecord; Err : text };
-type Result_16 = variant { Ok : vec User; Err : text };
+type Result_16 = variant { Ok : vec User; Err : AppError };
 type Result_17 = variant { Ok : vec VirtualConsultation; Err : text };
 type Result_2 = variant { Ok : FitnessChallenge; Err : text };
 type Result_3 = variant { Ok : FitnessChallengeParticipant; Err : text };
 type Result_4 = variant { Ok : HealthRecord; Err : text };
 type Result_5 = variant { Ok : MedicationReminder; Err : text };
 type Result_6 = variant { Ok : MentalHealthRecord; Err : text };
-type Result_7 = variant { Ok : User; Err : text };
+type Result_7 = variant { Ok : User; Err : AppError };
 type Result_8 = variant { Ok : VirtualConsultation; Err : text };
 type Result_9 = variant { Ok : vec DietRecord; Err : text };
 type User = record {
